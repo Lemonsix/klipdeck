@@ -1,0 +1,79 @@
+/* react-grid-layout core — required for correct absolute positioning */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+
+.react-grid-item {
+  position: absolute;
+  touch-action: none;
+  box-sizing: border-box;
+  transition: none;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none !important;
+  z-index: 100;
+  will-change: transform;
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: #06b6d4;
+  opacity: 0.15;
+  z-index: 2;
+  border: 2px dashed #06b6d4;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  border-radius: 0;
+  transition: none;
+}
+
+.react-grid-item.resizing {
+  z-index: 3;
+  will-change: width, height;
+  transition: none !important;
+}
+
+/* Resize handle */
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  z-index: 10;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #06b6d4;
+  border-bottom: 2px solid #06b6d4;
+}
+
+.react-resizable-hide > .react-resizable-handle {
+  display: none;
+}
+
+/* Drag handle */
+.widget-drag-handle {
+  cursor: grab;
+}
+
+.widget-drag-handle:active {
+  cursor: grabbing;
+}
