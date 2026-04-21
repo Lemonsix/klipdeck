@@ -47,11 +47,35 @@ export interface GcodeMoveStatus {
   gcode_position?: [number, number, number, number?];
 }
 
+/** Subset of Klipper `print_stats` for the PRINT widget. */
+export interface PrintStatsStatus {
+  filename?: string;
+  state?: string;
+  message?: string;
+  print_duration?: number;
+  total_duration?: number;
+  info?: { current_layer?: number; total_layer?: number };
+}
+
+export interface VirtualSdcardStatus {
+  file_path?: string;
+  progress?: number;
+  is_active?: boolean;
+}
+
+export interface DisplayStatusStatus {
+  message?: string;
+  progress?: number;
+}
+
 export interface PrinterObjectsStatus {
   extruder?: ExtruderStatus;
   heater_bed?: HeaterBedStatus;
   toolhead?: ToolheadStatus;
   gcode_move?: GcodeMoveStatus;
+  print_stats?: PrintStatsStatus;
+  virtual_sdcard?: VirtualSdcardStatus;
+  display_status?: DisplayStatusStatus;
   [key: string]: unknown;
 }
 

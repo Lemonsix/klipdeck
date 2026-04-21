@@ -1,0 +1,6 @@
+{
+  "moonrakerWsUrl": "ws://192.168.0.253:7125",
+  "moonrakerUrl": "http://192.168.0.253:7125",
+  "openaiApiToken": "",
+  "tempPresets": []
+}

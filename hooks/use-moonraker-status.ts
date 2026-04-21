@@ -5,12 +5,16 @@ import type { JsonRpcRequest, JsonRpcResponse, PrinterObjectsQueryResult } from 
 import { mergePrinterStatus, motionFromStatus, tempsFromStatus } from '@/lib/moonraker/merge-status';
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
 
-const SUBSCRIBE_OBJECTS = {
+/** Moonraker `printer.objects.subscribe`: `null` = all fields for that object. */
+const MOONRAKER_SUBSCRIBE_OBJECTS: Record<string, string[] | null> = {
   extruder: ['temperature', 'target'],
   heater_bed: ['temperature', 'target'],
   toolhead: ['position', 'axis_minimum', 'axis_maximum'],
   gcode_move: ['gcode_position'],
-} as const;
+  print_stats: null,
+  virtual_sdcard: null,
+  display_status: null,
+};
 
 function wsUrlFromPublicBase(overrideBase?: string | null): string | null {
   const base = overrideBase?.trim();
@@ -55,6 +59,7 @@ export function useMoonrakerStatus(
     maxZ: number | null
   ) => void,
   onPrinterState?: (state: string) => void,
+  onPrinterObjectsStatus?: (status: PrinterObjectsStatus) => void,
   wsBaseOverride?: string | null
 ): UseMoonrakerStatusResult {
   const [connectionState, setConnectionState] = useState<MoonrakerConnectionState>('idle');
@@ -70,6 +75,7 @@ export function useMoonrakerStatus(
   const onTempSampleRef = useRef(onTempSample);
   const onMotionRef = useRef(onMotion);
   const onPrinterStateRef = useRef(onPrinterState);
+  const onPrinterObjectsStatusRef = useRef(onPrinterObjectsStatus);
   /** At most one chart sample per second so 15 min window stays bounded. */
   const lastTempSampleAtRef = useRef(0);
 
@@ -77,6 +83,7 @@ export function useMoonrakerStatus(
   onTempSampleRef.current = onTempSample;
   onMotionRef.current = onMotion;
   onPrinterStateRef.current = onPrinterState;
+  onPrinterObjectsStatusRef.current = onPrinterObjectsStatus;
 
   const applyStatus = useCallback((status: PrinterObjectsStatus) => {
     statusRef.current = status;
@@ -91,6 +98,7 @@ export function useMoonrakerStatus(
         onTempSampleRef.current({ timestamp: ts, head: t.head, bed: t.bed });
       }
     }
+    onPrinterObjectsStatusRef.current?.(status);
   }, []);
 
   const nextId = () => {
@@ -192,12 +200,7 @@ export function useMoonrakerStatus(
           jsonrpc: '2.0',
           method: 'printer.objects.subscribe',
           params: {
-            objects: {
-              extruder: [...SUBSCRIBE_OBJECTS.extruder],
-              heater_bed: [...SUBSCRIBE_OBJECTS.heater_bed],
-              toolhead: [...SUBSCRIBE_OBJECTS.toolhead],
-              gcode_move: [...SUBSCRIBE_OBJECTS.gcode_move],
-            },
+            objects: MOONRAKER_SUBSCRIBE_OBJECTS,
           },
           id: sid,
         });

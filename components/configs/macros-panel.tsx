@@ -7,8 +7,8 @@ import {
   upsertGcodeMacroBlock,
 } from '@/lib/klipper/parse-gcode-macros';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { MacroGcodeEditor } from '@/components/configs/macro-gcode-editor';
 
 interface MacrosPanelProps {
   configText: string;
@@ -20,6 +20,11 @@ export function MacrosPanel({ configText, onConfigChange }: MacrosPanelProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const activeName = selected ?? macros[0]?.name ?? null;
   const active = macros.find((m) => m.name === activeName) ?? null;
+
+  const otherMacroNames = useMemo(
+    () => macros.map((m) => m.name).filter((n) => active == null || n !== active.name),
+    [macros, active]
+  );
 
   const [nameDraft, setNameDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
@@ -146,12 +151,13 @@ export function MacrosPanel({ configText, onConfigChange }: MacrosPanelProps) {
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 flex flex-col">
-              <label className="text-[10px] uppercase text-muted-foreground font-bold mb-1">Gcode</label>
-              <Textarea
+            <div className="flex min-h-0 flex-1 flex-col gap-1">
+              <label className="text-[10px] uppercase text-muted-foreground font-bold">Gcode</label>
+              <p className="text-[9px] font-mono text-muted-foreground">Ctrl+Space · Tab confirma</p>
+              <MacroGcodeEditor
                 value={gcodeDraft}
-                onChange={(e) => setGcodeDraft(e.target.value)}
-                className="flex-1 min-h-[220px] rounded-none font-mono text-xs"
+                onChange={setGcodeDraft}
+                otherMacroNames={otherMacroNames}
               />
             </div>
 

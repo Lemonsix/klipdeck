@@ -9,7 +9,7 @@ export interface KlipperLintIssue {
   code: string;
 }
 
-interface SectionRule {
+export interface SectionRule {
   required?: string[];
   allowed: string[];
 }
@@ -105,7 +105,7 @@ const RULES: Record<string, SectionRule> = {
   },
 };
 
-function resolveRule(sectionType: string): SectionRule | null {
+export function resolveLintRule(sectionType: string): SectionRule | null {
   if (RULES[sectionType]) return RULES[sectionType];
   if (sectionType.startsWith('stepper_')) return RULES.stepper;
   if (sectionType.startsWith('tmc')) {
@@ -143,7 +143,7 @@ export function lintKlipperConfig(source: string): KlipperLintIssue[] {
 
   const flushSectionRequired = () => {
     if (!sectionType) return;
-    const rule = resolveRule(sectionType);
+    const rule = resolveLintRule(sectionType);
     if (!rule?.required?.length) return;
     for (const required of rule.required) {
       if (!keysInSection.has(required)) {
@@ -173,17 +173,7 @@ export function lintKlipperConfig(source: string): KlipperLintIssue[] {
       sectionLine = lineNo;
       keysInSection = new Map();
 
-      const known = resolveRule(sectionType);
-      if (!known) {
-        issues.push({
-          line: lineNo,
-          column: 1,
-          endColumn: line.length,
-          severity: 'error',
-          message: `Unknown or unsupported section [${sectionHeader}]`,
-          code: 'unknown-section',
-        });
-      }
+      const known = resolveLintRule(sectionType);
       if (sectionType === 'gcode_macro') {
         const parts = sectionHeader.split(/\s+/);
         if (parts.length < 2 || !parts[1]) {
@@ -242,7 +232,7 @@ export function lintKlipperConfig(source: string): KlipperLintIssue[] {
     }
     keysInSection.set(key, lineNo);
 
-    const rule = resolveRule(sectionType);
+    const rule = resolveLintRule(sectionType);
     if (rule && !isAllowedKey(key, rule.allowed)) {
       issues.push({
         line: lineNo,

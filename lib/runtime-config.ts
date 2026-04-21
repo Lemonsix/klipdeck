@@ -1,16 +1,25 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+export interface TempPreset {
+  id: string;
+  name: string;
+  hotend: number;
+  bed: number;
+}
+
 export interface RuntimeConfig {
   moonrakerWsUrl: string;
   moonrakerUrl: string;
   openaiApiToken: string;
+  tempPresets: TempPreset[];
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   moonrakerWsUrl: '',
   moonrakerUrl: '',
   openaiApiToken: '',
+  tempPresets: [],
 };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -42,9 +51,20 @@ export async function readRuntimeConfig(): Promise<RuntimeConfig> {
   try {
     const raw = await readFile(RUNTIME_CONFIG_FILE, 'utf8');
     const parsed = JSON.parse(raw) as Partial<RuntimeConfig>;
+    const tempPresets = Array.isArray(parsed.tempPresets)
+      ? (parsed.tempPresets as TempPreset[]).filter(
+          (p) =>
+            p &&
+            typeof p.id === 'string' &&
+            typeof p.name === 'string' &&
+            typeof p.hotend === 'number' &&
+            typeof p.bed === 'number'
+        )
+      : DEFAULT_RUNTIME_CONFIG.tempPresets;
     return {
       ...DEFAULT_RUNTIME_CONFIG,
       ...parsed,
+      tempPresets,
     };
   } catch {
     return { ...DEFAULT_RUNTIME_CONFIG };
@@ -58,6 +78,7 @@ export async function writeRuntimeConfig(
   const next: RuntimeConfig = {
     ...current,
     ...partial,
+    tempPresets: partial.tempPresets !== undefined ? partial.tempPresets : current.tempPresets,
   };
 
   if (partial.moonrakerWsUrl !== undefined) {

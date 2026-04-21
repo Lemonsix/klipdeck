@@ -10,13 +10,16 @@ import { MacroWidget } from './widgets/macro-widget';
 import { ConsoleWidget } from './widgets/console-widget';
 import { ManualMoveWidget } from './widgets/manual-move-widget';
 import { FilesWidget } from './widgets/files-widget';
+import { PrintWidget } from './widgets/print-widget';
+import { printJobViewFromStatus } from '@/lib/moonraker/print-job-view';
+import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
 import { FirstRunOnboarding } from './first-run-onboarding';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Save, GripVertical } from 'lucide-react';
 import { useMoonrakerStatus } from '@/hooks/use-moonraker-status';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type WidgetType = 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files';
+type WidgetType = 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print';
 type WidgetSize = { w: number; h: number };
 
 const WIDGET_SIZE_PRESETS: Record<WidgetType, WidgetSize[]> = {
@@ -27,6 +30,7 @@ const WIDGET_SIZE_PRESETS: Record<WidgetType, WidgetSize[]> = {
   console: [{ w: 8, h: 4 }],
   motion: [{ w: 4, h: 3 }],
   files: [{ w: 6, h: 4 }],
+  print: [{ w: 6, h: 5 }],
 };
 
 function closestPreset(type: WidgetType, w: number, h: number): WidgetSize {
@@ -48,15 +52,24 @@ export function Dashboard() {
     setMotionState,
     addTempHistory,
     moonrakerWsUrl,
+    setPrintJobView,
   } = useStore();
 
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: false });
+
+  const onPrinterObjectsStatus = useCallback(
+    (status: PrinterObjectsStatus) => {
+      setPrintJobView(printJobViewFromStatus(status));
+    },
+    [setPrintJobView]
+  );
 
   const { connectionState, error: moonrakerError } = useMoonrakerStatus(
     setTemperatures,
     addTempHistory,
     setMotionState,
     undefined,
+    onPrinterObjectsStatus,
     moonrakerWsUrl || undefined
   );
 
@@ -118,7 +131,7 @@ export function Dashboard() {
   );
 
   return (
-    <div className="relative w-full min-h-screen bg-background">
+    <div className="relative w-full min-h-full bg-background">
       <FirstRunOnboarding />
       <div className="px-6 pt-6 pb-10">
         {/* Header */}
@@ -222,6 +235,7 @@ export function Dashboard() {
                           : widget.type === 'console' ? 'G-code Console'
                           : widget.type === 'motion' ? 'Manual Move'
                           : widget.type === 'files' ? 'Print Files'
+                          : widget.type === 'print' ? 'Print'
                           : widget.type}
                       </span>
                     </div>
@@ -261,6 +275,7 @@ export function Dashboard() {
                     {widget.type === 'console' && <ConsoleWidget widgetId={widget.id} />}
                     {widget.type === 'motion' && <ManualMoveWidget widgetId={widget.id} />}
                     {widget.type === 'files' && <FilesWidget widgetId={widget.id} />}
+                    {widget.type === 'print' && <PrintWidget widgetId={widget.id} />}
                   </div>
                 </div>
               ))}

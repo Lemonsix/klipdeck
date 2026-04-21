@@ -37,10 +37,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark bg-background">
-      <body className="font-sans antialiased bg-background text-foreground">
+    <html lang="en" className="dark bg-background" suppressHydrationWarning>
+      <body
+        className="font-sans antialiased bg-background text-foreground flex min-h-dvh flex-col overflow-x-hidden"
+        suppressHydrationWarning
+      >
         <Navbar />
-        <main className="min-h-screen">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </main>
         {process.env.NODE_ENV === 'production' && <Analytics />}

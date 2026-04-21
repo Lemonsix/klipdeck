@@ -83,6 +83,13 @@ export async function moonrakerPrinterInfo(): Promise<MoonrakerPrinterInfo> {
   return moonrakerFetch<MoonrakerPrinterInfo>('/printer/info', { method: 'GET' });
 }
 
+export async function moonrakerFirmwareRestart(): Promise<void> {
+  await moonrakerFetch<unknown>('/printer/firmware_restart', {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
 export async function moonrakerObjectsQuery(
   objects: Record<string, string[] | null>
 ): Promise<PrinterObjectsQueryResult> {
@@ -206,6 +213,27 @@ export async function moonrakerStartPrint(filename: string): Promise<void> {
   await moonrakerFetch<unknown>('/printer/print/start', {
     method: 'POST',
     body: JSON.stringify({ filename }),
+  });
+}
+
+export async function moonrakerPrintPause(): Promise<void> {
+  await moonrakerFetch<unknown>('/printer/print/pause', {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+export async function moonrakerPrintResume(): Promise<void> {
+  await moonrakerFetch<unknown>('/printer/print/resume', {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+export async function moonrakerPrintCancel(): Promise<void> {
+  await moonrakerFetch<unknown>('/printer/print/cancel', {
+    method: 'POST',
+    body: '{}',
   });
 }
 

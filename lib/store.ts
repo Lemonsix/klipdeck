@@ -1,8 +1,10 @@
 import { create } from 'zustand';
+import type { PrintJobView } from '@/lib/moonraker/print-job-view';
+import { EMPTY_PRINT_JOB_VIEW } from '@/lib/moonraker/print-job-view';
 
 export interface Widget {
   id: string;
-  type: 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files';
+  type: 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print';
   x: number;
   y: number;
   w: number;
@@ -30,6 +32,7 @@ interface WidgetStore {
   tempHistory: { timestamp: number; head: number; bed: number }[];
   openaiApiToken: string;
   moonrakerWsUrl: string;
+  printJobView: PrintJobView;
 
   // Widget actions
   addWidget: (widget: Widget) => void;
@@ -60,6 +63,7 @@ interface WidgetStore {
   // Settings
   setOpenaiToken: (token: string) => void;
   setMoonrakerWsUrl: (url: string) => void;
+  setPrintJobView: (view: PrintJobView) => void;
 }
 
 export const useStore = create<WidgetStore>((set) => ({
@@ -116,12 +120,12 @@ export const useStore = create<WidgetStore>((set) => ({
       config: {},
     },
     {
-      id: 'files-1',
-      type: 'files',
+      id: 'print-1',
+      type: 'print',
       x: 0,
       y: 9,
       w: 6,
-      h: 4,
+      h: 5,
       config: {},
     },
   ],
@@ -143,6 +147,7 @@ export const useStore = create<WidgetStore>((set) => ({
   tempHistory: [],
   openaiApiToken: '',
   moonrakerWsUrl: '',
+  printJobView: EMPTY_PRINT_JOB_VIEW,
 
   addWidget: (widget) =>
     set((state) => ({
@@ -204,5 +209,10 @@ export const useStore = create<WidgetStore>((set) => ({
   setMoonrakerWsUrl: (url) =>
     set(() => ({
       moonrakerWsUrl: url,
+    })),
+
+  setPrintJobView: (view) =>
+    set(() => ({
+      printJobView: view,
     })),
 }));
