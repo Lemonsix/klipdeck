@@ -11,28 +11,33 @@ import { ConsoleWidget } from './widgets/console-widget';
 import { ManualMoveWidget } from './widgets/manual-move-widget';
 import { FilesWidget } from './widgets/files-widget';
 import { PrintWidget } from './widgets/print-widget';
+import { NavigationWidget } from './widgets/navigation-widget';
+import { EmergencyStopWidget } from './widgets/emergency-stop-widget';
 import { printJobViewFromStatus } from '@/lib/moonraker/print-job-view';
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
 import { bedMeshPlotFromStatus } from '@/lib/moonraker/bed-mesh-from-status';
 import { FirstRunOnboarding } from './first-run-onboarding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Save, GripVertical } from 'lucide-react';
+import { GripVertical, Save } from 'lucide-react';
 import { useMoonrakerStatus } from '@/hooks/use-moonraker-status';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MOCK_GCODES_FILES } from '@/lib/dev/mock-gcode-files';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type WidgetType = 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print';
+type WidgetType = 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print' | 'nav' | 'estop';
 type WidgetSize = { w: number; h: number };
 
 const WIDGET_SIZE_PRESETS: Record<WidgetType, WidgetSize[]> = {
   temperature: [{ w: 3, h: 3 }],
   macro: [{ w: 3, h: 1 }, { w: 1, h: 1 }],
-  mesh: [{ w: 4, h: 4 }],
+  mesh: [{ w: 6, h: 6 }],
   status: [{ w: 2, h: 2 }],
-  console: [{ w: 8, h: 4 }],
+  console: [{ w: 4, h: 4 }],
   motion: [{ w: 4, h: 3 }],
   files: [{ w: 6, h: 4 }],
   print: [{ w: 6, h: 5 }],
+  nav: [{ w: 3, h: 3 }],
+  estop: [{ w: 3, h: 1 }, { w: 1, h: 1 }],
 };
 
 function closestPreset(type: WidgetType, w: number, h: number): WidgetSize {
@@ -113,18 +118,20 @@ export function Dashboard() {
   const layout: Layout = widgets.map((w) => {
     const normalized = closestPreset(w.type as WidgetType, w.w, w.h);
     const isMacro = w.type === 'macro';
+    const isButtonLike = w.type === 'macro' || w.type === 'estop';
+    const isNav = w.type === 'nav';
     return {
       i: w.id,
       x: w.x,
       y: w.y,
       w: normalized.w,
       h: normalized.h,
-      minW: isMacro ? 1 : normalized.w,
-      minH: isMacro ? 1 : normalized.h,
-      maxW: isMacro ? 3 : normalized.w,
-      maxH: isMacro ? 1 : normalized.h,
+      minW: isButtonLike ? 1 : normalized.w,
+      minH: isButtonLike ? 1 : normalized.h,
+      maxW: isButtonLike ? 3 : normalized.w,
+      maxH: isButtonLike ? 1 : normalized.h,
       isDraggable: isEditMode,
-      isResizable: isEditMode && isMacro,
+      isResizable: isEditMode && isButtonLike && !isNav,
     };
   });
 
@@ -137,20 +144,20 @@ export function Dashboard() {
         const normalized = closestPreset(existing.type as WidgetType, item.w, item.h);
         const nextW = normalized.w;
         const nextH = normalized.h;
-        const nextConfig =
-          existing.type === 'macro'
-            ? {
-                ...(existing.config ?? {}),
-                sizeVariant: nextW === 1 ? '1x1' : '3x1',
-              }
-            : existing.config;
+        const isButtonLike = existing.type === 'macro' || existing.type === 'estop';
+        const nextConfig = isButtonLike
+          ? {
+              ...(existing.config ?? {}),
+              sizeVariant: nextW === 1 ? '1x1' : '3x1',
+            }
+          : existing.config;
 
         if (
           existing.x !== item.x ||
           existing.y !== item.y ||
           existing.w !== nextW ||
           existing.h !== nextH ||
-          (existing.type === 'macro' &&
+          (isButtonLike &&
             (existing.config as { sizeVariant?: string } | undefined)?.sizeVariant !==
               (nextConfig as { sizeVariant?: string }).sizeVariant)
         ) {
@@ -167,43 +174,18 @@ export function Dashboard() {
     [widgets, updateWidget]
   );
 
+  useEffect(() => {
+    widgets.forEach((w) => {
+      if (w.type === 'mesh' && (w.w !== 6 || w.h !== 6)) {
+        updateWidget(w.id, { w: 6, h: 6 });
+      }
+    });
+  }, [widgets, updateWidget]);
+
   return (
     <div className="relative w-full min-h-full bg-background">
       <FirstRunOnboarding />
       <div className="px-6 pt-6 pb-10">
-        {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black text-foreground uppercase tracking-wider">Dashboard</h2>
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-              {widgets.length} widget{widgets.length !== 1 ? 's' : ''} active
-            </p>
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setEditMode(!isEditMode)}
-            className={`px-4 py-2 font-bold border-2 transition-colors flex items-center gap-2 text-sm uppercase tracking-wide ${
-              isEditMode
-                ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/80'
-                : 'bg-transparent text-foreground border-border hover:border-primary hover:text-primary'
-            }`}
-          >
-            {isEditMode ? <><Save size={15} />Done</> : <><Edit2 size={15} />Edit Layout</>}
-          </motion.button>
-        </div>
-
-        {connectionState === 'mock' && (
-          <Alert className="mb-4 border-2 rounded-none border-primary/40 bg-primary/5">
-            <AlertTitle className="font-mono text-xs uppercase tracking-wide text-primary">
-              Mock Moonraker data
-            </AlertTitle>
-            <AlertDescription className="font-mono text-xs mt-1 text-muted-foreground">
-              Dashboard widgets use in-repo mock state. G-code / file APIs are still disabled or stubbed per widget.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {(connectionState === 'missing_env' ||
           connectionState === 'error' ||
           connectionState === 'connecting') && (
@@ -235,9 +217,27 @@ export function Dashboard() {
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-primary/10 border-l-4 border-primary text-foreground px-4 py-3 text-xs font-mono uppercase tracking-wide flex items-center gap-2">
-                <GripVertical size={14} className="text-primary" />
-                Drag the handle bar to move — resize from bottom-right corner
+              <div className="bg-primary/10 border-l-4 border-primary text-foreground px-4 py-3 text-xs font-mono uppercase tracking-wide flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical size={14} className="text-primary" />
+                  Drag the handle bar to move — resize from bottom-right corner
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setEditMode(false)}
+                      className="px-2 py-1 border-2 border-primary bg-primary text-primary-foreground hover:bg-primary/80 transition-colors text-[10px] font-bold tracking-wide flex items-center gap-1"
+                    >
+                      <Save size={12} />
+                      Done
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={8} className="rounded-none border-2 border-border bg-card text-foreground p-2 max-w-72">
+                    <p className="text-[11px] font-bold uppercase tracking-wide">Guardar layout</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Finaliza edición y conserva la posición actual de widgets.</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </motion.div>
           )}
@@ -278,6 +278,8 @@ export function Dashboard() {
                       <GripVertical size={13} className="text-primary shrink-0" />
                       <span className="text-xs font-bold text-primary uppercase tracking-wider truncate">
                         {widget.type === 'temperature' ? 'Temperature Monitor'
+                          : widget.type === 'estop' ? 'Emergency Stop'
+                          : widget.type === 'nav' ? 'Navigation'
                           : widget.type === 'mesh' ? 'Bed Mesh'
                           : widget.type === 'macro' ? 'Macro Button'
                           : widget.type === 'console' ? 'G-code Console'
@@ -299,6 +301,13 @@ export function Dashboard() {
                     style={{ top: isEditMode ? 32 : 0 }}
                   >
                     {widget.type === 'temperature' && <TemperatureWidget widgetId={widget.id} />}
+                    {widget.type === 'estop' && (
+                      <EmergencyStopWidget
+                        widgetId={widget.id}
+                        sizeVariant={widget.config?.sizeVariant === '1x1' ? '1x1' : '3x1'}
+                      />
+                    )}
+                    {widget.type === 'nav' && <NavigationWidget widgetId={widget.id} />}
                     {widget.type === 'mesh' && <MeshWidget widgetId={widget.id} />}
                     {widget.type === 'macro' && widget.config?.klipperMacroName != null && (
                       <MacroWidget

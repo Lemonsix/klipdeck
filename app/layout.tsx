@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { Navbar } from '@/components/navbar'
 import './globals.css'
 import './grid-layout.css'
 
@@ -42,7 +41,6 @@ export default function RootLayout({
         className="font-sans antialiased bg-background text-foreground flex min-h-dvh flex-col overflow-x-hidden"
         suppressHydrationWarning
       >
-        <Navbar />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </main>

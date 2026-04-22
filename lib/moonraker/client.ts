@@ -237,6 +237,13 @@ export async function moonrakerPrintCancel(): Promise<void> {
   });
 }
 
+export async function moonrakerEmergencyStop(): Promise<void> {
+  await moonrakerFetch<unknown>('/printer/emergency_stop', {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
 export async function moonrakerUploadGcodeFile(file: File): Promise<void> {
   const form = new FormData();
   form.append('root', 'gcodes');

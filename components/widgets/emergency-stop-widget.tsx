@@ -1,98 +1,45 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import {
-  Zap,
-  Flame,
-  Home,
-  RefreshCw,
-  Layers,
-  Settings,
-  Wrench,
-  Play,
-  Square,
-  RotateCcw,
-  Thermometer,
-  Move,
-  Crosshair,
-  ChevronUp,
-  LayoutDashboard,
-  type LucideIcon,
-} from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  zap: Zap,
-  flame: Flame,
-  home: Home,
-  refresh: RefreshCw,
-  layers: Layers,
-  settings: Settings,
-  tool: Wrench,
-  play: Play,
-  stop: Square,
-  reset: RotateCcw,
-  temp: Thermometer,
-  move: Move,
-  crosshair: Crosshair,
-  up: ChevronUp,
-  dashboard: LayoutDashboard,
-};
-
-interface MacroWidgetProps {
+interface EmergencyStopWidgetProps {
   widgetId: string;
-  klipperMacroName: string;
-  icon?: string;
-  buttonLabel?: string;
   sizeVariant?: '1x1' | '3x1';
-  color?: string;
 }
 
-async function postGcodeScript(script: string): Promise<void> {
-  const res = await fetch('/api/moonraker/printer/gcode/script', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ script }),
-  });
-  const data = (await res.json()) as { error?: string };
-  if (!res.ok) {
-    throw new Error(typeof data.error === 'string' ? data.error : 'G-code failed');
-  }
-}
-
-export function MacroWidget({
+export function EmergencyStopWidget({
   widgetId: _widgetId,
-  klipperMacroName,
-  icon,
-  buttonLabel,
   sizeVariant = '3x1',
-  color = '#06b6d4',
-}: MacroWidgetProps) {
-  const { isEditMode, mockMoonrakerData } = useStore();
+}: EmergencyStopWidgetProps) {
+  const isEditMode = useStore((s) => s.isEditMode);
+  const mockMoonrakerData = useStore((s) => s.mockMoonrakerData);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const IconComponent = ICON_MAP[icon ?? 'zap'] ?? Zap;
-  const displayLabel = buttonLabel ?? klipperMacroName;
-
-  const run = useCallback(async () => {
+  const onEmergencyStop = useCallback(async () => {
     if (isEditMode || busy) return;
     setError(null);
     setBusy(true);
     try {
       if (mockMoonrakerData) {
-        await new Promise((r) => setTimeout(r, 180));
+        setError('Mock mode: emergency stop disabled');
         return;
       }
-      await postGcodeScript(klipperMacroName);
+      const res = await fetch('/api/moonraker/printer/emergency-stop', { method: 'POST' });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Emergency stop failed');
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : 'Emergency stop failed');
     } finally {
       setBusy(false);
     }
-  }, [isEditMode, busy, klipperMacroName, mockMoonrakerData]);
+  }, [isEditMode, busy, mockMoonrakerData]);
 
   return (
     <div className="h-full w-full overflow-hidden group relative flex flex-col">
@@ -100,6 +47,8 @@ export function MacroWidget({
         <TooltipTrigger asChild>
           <motion.button
             type="button"
+            onClick={() => void onEmergencyStop()}
+            disabled={isEditMode || busy}
             className={`w-full flex-1 min-h-0 p-2 transition-colors disabled:opacity-60 ${
               sizeVariant === '1x1'
                 ? 'flex items-center justify-center'
@@ -107,17 +56,15 @@ export function MacroWidget({
             }`}
             whileHover={isEditMode ? {} : { scale: 1.04 }}
             whileTap={isEditMode ? {} : { scale: 0.96 }}
-            disabled={isEditMode || busy}
-            onClick={() => void run()}
             style={{
-              backgroundColor: `${color}14`,
-              borderLeft: `3px solid ${color}`,
+              backgroundColor: '#dc262614',
+              borderLeft: '3px solid #dc2626',
             }}
           >
-            <IconComponent size={18} className="shrink-0" style={{ color }} strokeWidth={2.5} />
+            <AlertTriangle size={18} className="shrink-0 text-red-500" strokeWidth={2.5} />
             {sizeVariant === '3x1' && (
               <span className="text-[11px] font-bold text-foreground uppercase tracking-wider truncate">
-                {displayLabel}
+                Emergency Stop
               </span>
             )}
             {busy && sizeVariant === '3x1' && (
@@ -126,9 +73,9 @@ export function MacroWidget({
           </motion.button>
         </TooltipTrigger>
         <TooltipContent sideOffset={8} className="rounded-none border-2 border-border bg-card text-foreground p-2 max-w-72">
-          <p className="text-[11px] font-bold uppercase tracking-wide">{displayLabel}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide">Emergency Stop</p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Ejecuta el macro <code>{klipperMacroName}</code> en Klipper.
+            Detiene inmediatamente la impresora. Usa Moonraker <code>/printer/emergency_stop</code>.
           </p>
         </TooltipContent>
       </Tooltip>
@@ -139,7 +86,7 @@ export function MacroWidget({
       )}
       <div
         className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-        style={{ backgroundColor: color }}
+        style={{ backgroundColor: '#dc2626' }}
       />
     </div>
   );

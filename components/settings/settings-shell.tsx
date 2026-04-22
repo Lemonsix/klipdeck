@@ -9,6 +9,7 @@ import { SettingsMachine } from '@/components/settings/settings-machine';
 import { SettingsDocs } from '@/components/settings/settings-docs';
 import { usePrinterCfg } from '@/components/settings/use-printer-cfg';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 
 export function SettingsShell() {
   const router = useRouter();
@@ -27,7 +28,19 @@ export function SettingsShell() {
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col bg-background">
       <header className="flex shrink-0 items-baseline justify-between gap-2 border-b-2 border-border px-2 py-1.5">
-        <h1 className="text-lg font-black uppercase tracking-wider text-foreground">Settings</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 rounded-none border-2 px-2"
+            onClick={() => router.push('/')}
+            aria-label="Close settings"
+          >
+            <ChevronLeft size={14} />
+          </Button>
+          <h1 className="text-lg font-black uppercase tracking-wider text-foreground">Settings</h1>
+        </div>
         <span className="text-[10px] font-mono text-muted-foreground">
           tab:{' '}
           <select

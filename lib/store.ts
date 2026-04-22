@@ -6,7 +6,7 @@ import type { MockGcodeFileEntry } from '@/lib/dev/mock-gcode-files';
 
 export interface Widget {
   id: string;
-  type: 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print';
+  type: 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print' | 'nav' | 'estop';
   x: number;
   y: number;
   w: number;
@@ -79,9 +79,18 @@ interface WidgetStore {
 export const useStore = create<WidgetStore>((set) => ({
   widgets: [
     {
+      id: 'nav-1',
+      type: 'nav',
+      x: 0,
+      y: 0,
+      w: 3,
+      h: 3,
+      config: {},
+    },
+    {
       id: 'temp-1',
       type: 'temperature',
-      x: 0,
+      x: 3,
       y: 0,
       w: 3,
       h: 3,
@@ -107,7 +116,7 @@ export const useStore = create<WidgetStore>((set) => ({
       type: 'console',
       x: 0,
       y: 5,
-      w: 8,
+      w: 4,
       h: 4,
       config: {},
     },
@@ -123,10 +132,10 @@ export const useStore = create<WidgetStore>((set) => ({
     {
       id: 'mesh-1',
       type: 'mesh',
-      x: 8,
+      x: 6,
       y: 5,
-      w: 4,
-      h: 4,
+      w: 6,
+      h: 6,
       config: {},
     },
     {
@@ -137,6 +146,15 @@ export const useStore = create<WidgetStore>((set) => ({
       w: 6,
       h: 5,
       config: {},
+    },
+    {
+      id: 'estop-1',
+      type: 'estop',
+      x: 9,
+      y: 0,
+      w: 3,
+      h: 1,
+      config: { sizeVariant: '3x1' },
     },
   ],
   isEditMode: false,

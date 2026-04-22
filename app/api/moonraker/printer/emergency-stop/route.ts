@@ -1,0 +1,11 @@
+import { moonrakerEmergencyStop } from '@/lib/moonraker/client';
+import { moonrakerErrorResponse } from '@/lib/moonraker/route-errors';
+
+export async function POST() {
+  try {
+    await moonrakerEmergencyStop();
+    return Response.json({ ok: true });
+  } catch (err) {
+    return moonrakerErrorResponse(err);
+  }
+}
