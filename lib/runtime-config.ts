@@ -13,6 +13,10 @@ export interface RuntimeConfig {
   moonrakerUrl: string;
   openaiApiToken: string;
   tempPresets: TempPreset[];
+  /** Enables extra settings in UI (e.g. mock data). */
+  developerMode: boolean;
+  /** Feed dashboard from in-repo mock instead of Moonraker WS. */
+  mockMoonrakerData: boolean;
 }
 
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
@@ -20,10 +24,21 @@ const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   moonrakerUrl: '',
   openaiApiToken: '',
   tempPresets: [],
+  developerMode: false,
+  mockMoonrakerData: false,
 };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const RUNTIME_CONFIG_FILE = path.join(DATA_DIR, 'runtime-config.json');
+
+function envBool(name: string): boolean | null {
+  const v = process.env[name];
+  if (v === undefined) return null;
+  const normalized = v.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return null;
+}
 
 function normalizeWsInput(v: string): string {
   const trimmed = v.trim();
@@ -61,13 +76,27 @@ export async function readRuntimeConfig(): Promise<RuntimeConfig> {
             typeof p.bed === 'number'
         )
       : DEFAULT_RUNTIME_CONFIG.tempPresets;
+    const envDeveloperMode = envBool('KLIPDECK_DEVELOPER_MODE');
+    const envMockData = envBool('KLIPDECK_MOCK_MOONRAKER_DATA');
+    const developerMode = envDeveloperMode ?? false;
+    const mockMoonrakerData = (envMockData ?? false) && developerMode;
     return {
       ...DEFAULT_RUNTIME_CONFIG,
       ...parsed,
       tempPresets,
+      developerMode,
+      mockMoonrakerData,
     };
   } catch {
-    return { ...DEFAULT_RUNTIME_CONFIG };
+    const envDeveloperMode = envBool('KLIPDECK_DEVELOPER_MODE');
+    const envMockData = envBool('KLIPDECK_MOCK_MOONRAKER_DATA');
+    const developerMode = envDeveloperMode ?? DEFAULT_RUNTIME_CONFIG.developerMode;
+    const mockMoonrakerData = (envMockData ?? DEFAULT_RUNTIME_CONFIG.mockMoonrakerData) && developerMode;
+    return {
+      ...DEFAULT_RUNTIME_CONFIG,
+      developerMode,
+      mockMoonrakerData,
+    };
   }
 }
 
@@ -75,10 +104,19 @@ export async function writeRuntimeConfig(
   partial: Partial<RuntimeConfig>
 ): Promise<RuntimeConfig> {
   const current = await readRuntimeConfig();
+  const envDeveloperMode = envBool('KLIPDECK_DEVELOPER_MODE');
+  const envMockData = envBool('KLIPDECK_MOCK_MOONRAKER_DATA');
+
+  const baseDeveloperMode = envDeveloperMode ?? false;
+  const baseMockMoonrakerData = envMockData ?? false;
+
   const next: RuntimeConfig = {
     ...current,
     ...partial,
     tempPresets: partial.tempPresets !== undefined ? partial.tempPresets : current.tempPresets,
+    developerMode: baseDeveloperMode,
+    mockMoonrakerData:
+      (envMockData ?? baseMockMoonrakerData) && baseDeveloperMode,
   };
 
   if (partial.moonrakerWsUrl !== undefined) {
@@ -86,6 +124,8 @@ export async function writeRuntimeConfig(
     next.moonrakerWsUrl = normalizedWs;
     next.moonrakerUrl = normalizedWs ? wsToHttp(normalizedWs) : '';
   }
+
+  next.mockMoonrakerData = next.mockMoonrakerData && next.developerMode;
 
   await ensureDataDir();
   await writeFile(RUNTIME_CONFIG_FILE, JSON.stringify(next, null, 2), 'utf8');

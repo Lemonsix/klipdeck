@@ -10,12 +10,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 
 const TEMP_WINDOW_MS = 15 * 60 * 1000;
 const MAX_HOTEND = 350;
 const MAX_BED = 150;
+const SPARK_H = 160;
 
 interface TemperatureWidgetProps {
   widgetId: string;
@@ -38,7 +39,8 @@ function fmt(v: number | null) {
 }
 
 export function TemperatureWidget({ widgetId: _widgetId }: TemperatureWidgetProps) {
-  const { tempHead, tempBed, targetTempHead, targetTempBed, tempHistory } = useStore();
+  const { tempHead, tempBed, targetTempHead, targetTempBed, tempHistory, mockMoonrakerData } =
+    useStore();
 
   const [headDraft, setHeadDraft] = useState('');
   const [bedDraft, setBedDraft] = useState('');
@@ -74,10 +76,27 @@ export function TemperatureWidget({ widgetId: _widgetId }: TemperatureWidgetProp
       bed: +entry.bed.toFixed(1),
     }));
 
+  const yDomain = useMemo((): [number, number] => {
+    if (chartData.length === 0) return [0, 120];
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const row of chartData) {
+      lo = Math.min(lo, row.head, row.bed);
+      hi = Math.max(hi, row.head, row.bed);
+    }
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [0, 120];
+    const pad = Math.max(4, (hi - lo) * 0.1);
+    return [Math.max(0, lo - pad), hi + pad];
+  }, [chartData]);
+
   const applyHeadTarget = useCallback(async () => {
     const n = Number.parseInt(headDraft.trim(), 10);
     if (Number.isNaN(n) || n < 0 || n > MAX_HOTEND) {
       setErr(`Heater target must be 0-${MAX_HOTEND}`);
+      return;
+    }
+    if (mockMoonrakerData) {
+      setErr('Mock mode: heater commands disabled');
       return;
     }
     setErr(null);
@@ -89,12 +108,16 @@ export function TemperatureWidget({ widgetId: _widgetId }: TemperatureWidgetProp
     } finally {
       setHeadBusy(false);
     }
-  }, [headDraft]);
+  }, [headDraft, mockMoonrakerData]);
 
   const applyBedTarget = useCallback(async () => {
     const n = Number.parseInt(bedDraft.trim(), 10);
     if (Number.isNaN(n) || n < 0 || n > MAX_BED) {
       setErr(`Bed target must be 0-${MAX_BED}`);
+      return;
+    }
+    if (mockMoonrakerData) {
+      setErr('Mock mode: heater commands disabled');
       return;
     }
     setErr(null);
@@ -106,97 +129,157 @@ export function TemperatureWidget({ widgetId: _widgetId }: TemperatureWidgetProp
     } finally {
       setBedBusy(false);
     }
-  }, [bedDraft]);
+  }, [bedDraft, mockMoonrakerData]);
+
+  const hasHistory = chartData.length > 0;
 
   return (
-    <div className="h-full w-full p-3 flex flex-col overflow-hidden">
-      <div className="shrink-0 border-b-2 border-border pb-2 mb-2">
-        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Temperature</h3>
+    <div className="h-full w-full flex flex-col min-h-0 p-1.5 gap-1.5 overflow-hidden">
+      <div className="shrink-0 flex items-baseline justify-between gap-2 border-b border-border/50 pb-1">
+        <h3 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+          Temperature
+        </h3>
+        <span className="text-[8px] font-mono text-muted-foreground/70">°C</span>
       </div>
 
-      <div className="shrink-0 border-2 border-border/60 bg-black/20 font-mono text-[11px]">
-        <div className="grid grid-cols-[54px_1fr_90px_1fr] gap-1.5 px-2 py-1 border-b border-border/40 text-[10px] uppercase text-muted-foreground">
-          <span>Zone</span>
-          <span>Current</span>
-          <span>Target</span>
-          <span>Max</span>
-        </div>
-
-        <div className="grid grid-cols-[54px_1fr_90px_1fr] gap-1.5 px-2 py-1.5 items-center border-b border-border/30">
-          <span className="font-bold text-primary">Heater</span>
-          <span>{fmt(tempHead)}°</span>
-          <Input
-            value={headDraft}
-            onChange={(e) => setHeadDraft(e.target.value)}
-            onFocus={() => setEditingHead(true)}
-            onBlur={() => setEditingHead(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void applyHeadTarget();
-            }}
-            disabled={headBusy || bedBusy}
-            className="h-6 rounded-none border px-1.5 text-[11px]"
-            inputMode="numeric"
-          />
-          <span>{MAX_HOTEND}°</span>
-        </div>
-
-        <div className="grid grid-cols-[54px_1fr_90px_1fr] gap-1.5 px-2 py-1.5 items-center">
-          <span className="font-bold text-secondary">Bed</span>
-          <span>{fmt(tempBed)}°</span>
-          <Input
-            value={bedDraft}
-            onChange={(e) => setBedDraft(e.target.value)}
-            onFocus={() => setEditingBed(true)}
-            onBlur={() => setEditingBed(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void applyBedTarget();
-            }}
-            disabled={headBusy || bedBusy}
-            className="h-6 rounded-none border px-1.5 text-[11px]"
-            inputMode="numeric"
-          />
-          <span>{MAX_BED}°</span>
-        </div>
-      </div>
-
-      <div className="flex-1 min-h-0 mt-2 border-2 border-border/50 p-2 bg-black/40">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 2, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
-            <XAxis
-              dataKey="time"
-              tick={{ fontSize: 8, fontFamily: 'monospace' }}
-              stroke="#444"
-              interval="preserveStartEnd"
-              minTickGap={52}
-            />
-            <YAxis
-              domain={[0, 280]}
-              tick={{ fontSize: 8, fontFamily: 'monospace' }}
-              stroke="#444"
-              width={28}
-            />
-            <Tooltip
-              labelFormatter={(_, payload) => {
-                const p = payload?.[0]?.payload as { ts?: number } | undefined;
-                return p?.ts != null ? new Date(p.ts).toLocaleString() : '';
+      <div className="shrink-0 grid grid-cols-2 gap-1.5 min-w-0">
+        <div className="min-w-0 rounded-sm border border-primary/30 bg-primary/5 pl-1.5 pr-1 pt-1 pb-1">
+          <div className="flex items-center justify-between gap-0.5 mb-0.5">
+            <span className="text-[9px] font-bold text-primary shrink-0">Hotend</span>
+            <span className="text-[8px] text-muted-foreground font-mono tabular-nums">
+              max {MAX_HOTEND}
+            </span>
+          </div>
+          <div className="flex items-end justify-between gap-1">
+            <span className="text-lg font-semibold tabular-nums leading-none text-foreground tracking-tight">
+              {fmt(tempHead)}
+              <span className="text-[10px] font-normal text-muted-foreground ml-0.5">°</span>
+            </span>
+            <Input
+              value={headDraft}
+              onChange={(e) => setHeadDraft(e.target.value)}
+              onFocus={() => setEditingHead(true)}
+              onBlur={() => setEditingHead(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void applyHeadTarget();
               }}
-              contentStyle={{
-                backgroundColor: '#1a1a1a',
-                border: '2px solid #06b6d4',
-                borderRadius: 0,
-                fontFamily: 'monospace',
-                fontSize: 11,
-              }}
-              cursor={{ stroke: '#06b6d4', strokeWidth: 1 }}
+              disabled={headBusy || bedBusy}
+              className="h-7 w-[3.25rem] shrink-0 rounded-none border border-border px-1 text-center text-xs font-mono font-semibold py-0"
+              inputMode="numeric"
+              title="Target °C"
             />
-            <Line type="monotone" dataKey="head" stroke="#06b6d4" dot={false} isAnimationActive={false} strokeWidth={2} name="Heater" />
-            <Line type="monotone" dataKey="bed" stroke="#0d9488" dot={false} isAnimationActive={false} strokeWidth={2} name="Bed" />
-          </LineChart>
-        </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="min-w-0 rounded-sm border border-secondary/30 bg-secondary/5 pl-1.5 pr-1 pt-1 pb-1">
+          <div className="flex items-center justify-between gap-0.5 mb-0.5">
+            <span className="text-[9px] font-bold text-secondary shrink-0">Bed</span>
+            <span className="text-[8px] text-muted-foreground font-mono tabular-nums">
+              max {MAX_BED}
+            </span>
+          </div>
+          <div className="flex items-end justify-between gap-1">
+            <span className="text-lg font-semibold tabular-nums leading-none text-foreground tracking-tight">
+              {fmt(tempBed)}
+              <span className="text-[10px] font-normal text-muted-foreground ml-0.5">°</span>
+            </span>
+            <Input
+              value={bedDraft}
+              onChange={(e) => setBedDraft(e.target.value)}
+              onFocus={() => setEditingBed(true)}
+              onBlur={() => setEditingBed(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void applyBedTarget();
+              }}
+              disabled={headBusy || bedBusy}
+              className="h-7 w-[3.25rem] shrink-0 rounded-none border border-border px-1 text-center text-xs font-mono font-semibold py-0"
+              inputMode="numeric"
+              title="Target °C"
+            />
+          </div>
+        </div>
       </div>
 
-      {err && <p className="mt-1 text-[10px] text-destructive font-mono shrink-0">{err}</p>}
+      <div
+        className="shrink-0 w-full overflow-hidden rounded-sm border border-border/30 bg-black/40"
+        style={{ height: SPARK_H }}
+      >
+        {!hasHistory ? (
+          <div
+            className="flex h-full items-center justify-center px-2 text-center text-[9px] font-mono text-muted-foreground/80"
+            style={{ height: SPARK_H }}
+          >
+            Waiting for samples…
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={SPARK_H}>
+            <LineChart
+              data={chartData}
+              margin={{ top: 2, right: 4, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+              <YAxis
+                domain={yDomain}
+                tick={{ fontSize: 7, fontFamily: 'monospace', fill: '#737373' }}
+                stroke="transparent"
+                width={28}
+                tickCount={4}
+                axisLine={false}
+              />
+              <XAxis
+                dataKey="time"
+                tick={{ fontSize: 6, fontFamily: 'monospace', fill: '#737373' }}
+                stroke="transparent"
+                interval="preserveStartEnd"
+                minTickGap={36}
+                tickLine={false}
+                height={12}
+              />
+              <Tooltip
+                labelFormatter={(_, payload) => {
+                  const p = payload?.[0]?.payload as { ts?: number } | undefined;
+                  return p?.ts != null ? new Date(p.ts).toLocaleString() : '';
+                }}
+                contentStyle={{
+                  backgroundColor: '#171717',
+                  border: '1px solid #404040',
+                  borderRadius: 2,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  padding: '4px 8px',
+                }}
+                cursor={{ stroke: '#ffffff22', strokeWidth: 1 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="bed"
+                stroke="#14b8a6"
+                strokeOpacity={0.65}
+                strokeWidth={1.25}
+                dot={false}
+                isAnimationActive={false}
+                name="Bed"
+                strokeDasharray="3 2"
+              />
+              <Line
+                type="monotone"
+                dataKey="head"
+                stroke="#06b6d4"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+                name="Heater"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {err && (
+        <p className="shrink-0 truncate text-[9px] text-destructive font-mono leading-tight">
+          {err}
+        </p>
+      )}
     </div>
   );
 }

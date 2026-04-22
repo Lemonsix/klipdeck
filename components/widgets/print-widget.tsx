@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
+import { mockMetadataForPath } from '@/lib/dev/mock-gcode-files';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -63,6 +64,7 @@ type Panel = 'picker' | 'printing' | 'done';
 
 export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
   const printJobView = useStore((s) => s.printJobView);
+  const mockMoonrakerData = useStore((s) => s.mockMoonrakerData);
 
   const [panel, setPanel] = useState<Panel>(() => (isActiveJob(printJobView) ? 'printing' : 'picker'));
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -100,14 +102,20 @@ export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/moonraker/server/files/gcodes');
-      const data = (await res.json()) as { error?: string; files?: FileEntry[] };
-      if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load files');
+      const { mockMoonrakerData: mock, mockGcodeFiles: mockList } = useStore.getState();
+      if (mock) {
+        const next = [...(mockList ?? [])].sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
+        setFiles(next);
+      } else {
+        const res = await fetch('/api/moonraker/server/files/gcodes');
+        const data = (await res.json()) as { error?: string; files?: FileEntry[] };
+        if (!res.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load files');
+        }
+        const next = Array.isArray(data.files) ? data.files : [];
+        next.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
+        setFiles(next);
       }
-      const next = Array.isArray(data.files) ? data.files : [];
-      next.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
-      setFiles(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -117,13 +125,22 @@ export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
 
   useEffect(() => {
     void fetchFiles();
-  }, [fetchFiles]);
+  }, [fetchFiles, mockMoonrakerData]);
 
   const openConfirm = useCallback(async (file: FileEntry) => {
     setSelected(file);
     setModalOpen(true);
     setMetadataLoading(true);
     setMetadata(null);
+    if (useStore.getState().mockMoonrakerData) {
+      const m = mockMetadataForPath(file.path);
+      setMetadata({
+        estimatedTimeSec: m.estimatedTimeSec,
+        filamentMm: m.filamentMm,
+      });
+      setMetadataLoading(false);
+      return;
+    }
     try {
       const encoded = encodeURIComponent(file.path);
       const res = await fetch(`/api/moonraker/server/files/metadata?filename=${encoded}`);
@@ -144,6 +161,11 @@ export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
 
   const startPrint = useCallback(async () => {
     if (!selected || printing) return;
+    if (useStore.getState().mockMoonrakerData) {
+      setModalOpen(false);
+      setError(null);
+      return;
+    }
     setPrinting(true);
     try {
       const res = await fetch('/api/moonraker/printer/print/start', {
@@ -170,6 +192,11 @@ export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
   }, []);
 
   const handleUploadChange = useCallback(async () => {
+    if (useStore.getState().mockMoonrakerData) {
+      setError('Mock mode: upload disabled');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     const filesList = fileInputRef.current?.files;
     if (!filesList || filesList.length === 0) return;
     setUploading(true);
@@ -197,6 +224,9 @@ export function PrintWidget({ widgetId: _widgetId }: PrintWidgetProps) {
   }, [fetchFiles]);
 
   const postPrintAction = useCallback(async (path: string) => {
+    if (useStore.getState().mockMoonrakerData) {
+      return;
+    }
     const res = await fetch(path, { method: 'POST' });
     const data = (await res.json()) as { error?: string };
     if (!res.ok) {

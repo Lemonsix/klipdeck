@@ -1,6 +1,7 @@
 {
-  "moonrakerWsUrl": "ws://192.168.0.253:7125",
-  "moonrakerUrl": "http://192.168.0.253:7125",
-  "openaiApiToken": "",
-  "tempPresets": []
+  "moonrakerUrl": "http://alan.ascorti@contarg.com",
+  "openaiApiToken": "123456",
+  "tempPresets": [],
+  "developerMode": true,
+  "mockMoonrakerData": true
 }

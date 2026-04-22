@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useStore } from '@/lib/store';
+import { mockMetadataForPath } from '@/lib/dev/mock-gcode-files';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -67,6 +69,7 @@ function formatFilament(filamentMm: number | null): string {
 }
 
 export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
+  const mockMoonrakerData = useStore((s) => s.mockMoonrakerData);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +85,20 @@ export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/moonraker/server/files/gcodes');
-      const data = (await res.json()) as { error?: string; files?: FileEntry[] };
-      if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load files');
+      const { mockMoonrakerData: mock, mockGcodeFiles: mockList } = useStore.getState();
+      if (mock) {
+        const next = [...(mockList ?? [])].sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
+        setFiles(next);
+      } else {
+        const res = await fetch('/api/moonraker/server/files/gcodes');
+        const data = (await res.json()) as { error?: string; files?: FileEntry[] };
+        if (!res.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load files');
+        }
+        const next = Array.isArray(data.files) ? data.files : [];
+        next.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
+        setFiles(next);
       }
-      const next = Array.isArray(data.files) ? data.files : [];
-      next.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));
-      setFiles(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -99,13 +108,22 @@ export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
 
   useEffect(() => {
     void fetchFiles();
-  }, [fetchFiles]);
+  }, [fetchFiles, mockMoonrakerData]);
 
   const openConfirm = useCallback(async (file: FileEntry) => {
     setSelected(file);
     setModalOpen(true);
     setMetadataLoading(true);
     setMetadata(null);
+    if (useStore.getState().mockMoonrakerData) {
+      const m = mockMetadataForPath(file.path);
+      setMetadata({
+        estimatedTimeSec: m.estimatedTimeSec,
+        filamentMm: m.filamentMm,
+      });
+      setMetadataLoading(false);
+      return;
+    }
     try {
       const encoded = encodeURIComponent(file.path);
       const res = await fetch(`/api/moonraker/server/files/metadata?filename=${encoded}`);
@@ -126,6 +144,11 @@ export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
 
   const startPrint = useCallback(async () => {
     if (!selected || printing) return;
+    if (useStore.getState().mockMoonrakerData) {
+      setModalOpen(false);
+      setError(null);
+      return;
+    }
     setPrinting(true);
     try {
       const res = await fetch('/api/moonraker/printer/print/start', {
@@ -150,6 +173,11 @@ export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
   }, []);
 
   const handleUploadChange = useCallback(async () => {
+    if (useStore.getState().mockMoonrakerData) {
+      setError('Mock mode: upload disabled');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     const filesList = fileInputRef.current?.files;
     if (!filesList || filesList.length === 0) return;
     setUploading(true);

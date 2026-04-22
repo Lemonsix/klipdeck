@@ -24,7 +24,7 @@ function normalizeWsInput(v: string): string {
 }
 
 export function FirstRunOnboarding() {
-  const { setMoonrakerWsUrl, setOpenaiToken } = useStore();
+  const { setMoonrakerWsUrl, setOpenaiToken, setDeveloperMode, setMockMoonrakerData } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [wsUrl, setWsUrl] = useState('');
@@ -39,13 +39,27 @@ export function FirstRunOnboarding() {
       try {
         const res = await fetch('/api/runtime-config');
         const data = (await res.json()) as {
-          config?: { moonrakerWsUrl?: string; openaiApiToken?: string };
+          config?: {
+            moonrakerWsUrl?: string;
+            openaiApiToken?: string;
+            developerMode?: boolean;
+            mockMoonrakerData?: boolean;
+          };
         };
         if (cancelled) return;
         const savedWs = data.config?.moonrakerWsUrl ?? '';
         const savedToken = data.config?.openaiApiToken ?? '';
         if (savedWs) setMoonrakerWsUrl(savedWs);
         if (savedToken) setOpenaiToken(savedToken);
+        const developerMode = Boolean(data.config?.developerMode);
+        const mockMoonrakerData = Boolean(data.config?.mockMoonrakerData);
+        setDeveloperMode(developerMode);
+        setMockMoonrakerData(mockMoonrakerData);
+
+        if (developerMode && mockMoonrakerData) {
+          setIsOpen(false);
+          return;
+        }
         if (!done) {
           setWsUrl(savedWs);
           setOpenaiTokenDraft(savedToken);
@@ -59,7 +73,7 @@ export function FirstRunOnboarding() {
     return () => {
       cancelled = true;
     };
-  }, [setMoonrakerWsUrl, setOpenaiToken]);
+  }, [setMoonrakerWsUrl, setOpenaiToken, setDeveloperMode, setMockMoonrakerData]);
 
   const testMoonrakerLive = useCallback(async () => {
     const normalized = normalizeWsInput(wsUrl);

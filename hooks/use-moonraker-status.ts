@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { JsonRpcRequest, JsonRpcResponse, PrinterObjectsQueryResult } from '@/lib/moonraker/types';
 import { mergePrinterStatus, motionFromStatus, tempsFromStatus } from '@/lib/moonraker/merge-status';
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
+import { getMockPrinterObjectsStatus } from '@/lib/dev/mock-printer-objects-status';
 
 /** Moonraker `printer.objects.subscribe`: `null` = all fields for that object. */
 const MOONRAKER_SUBSCRIBE_OBJECTS: Record<string, string[] | null> = {
@@ -14,6 +15,7 @@ const MOONRAKER_SUBSCRIBE_OBJECTS: Record<string, string[] | null> = {
   print_stats: null,
   virtual_sdcard: null,
   display_status: null,
+  bed_mesh: ['mesh_matrix', 'mesh_min', 'mesh_max', 'profile_name', 'probed_matrix', 'profiles'],
 };
 
 function wsUrlFromPublicBase(overrideBase?: string | null): string | null {
@@ -27,6 +29,7 @@ export type MoonrakerConnectionState =
   | 'missing_env'
   | 'connecting'
   | 'live'
+  | 'mock'
   | 'error';
 
 export interface UseMoonrakerStatusResult {
@@ -37,7 +40,7 @@ export interface UseMoonrakerStatusResult {
 
 /**
  * WebSocket JSON-RPC: identify → printer.objects.subscribe → notify_status_update.
- * Updates Zustand temperatures via callbacks (no mock data).
+ * Updates Zustand temperatures via callbacks. Optional `mockMoonrakerData` skips WS and applies in-repo mock.
  */
 export function useMoonrakerStatus(
   onTemps: (
@@ -60,7 +63,8 @@ export function useMoonrakerStatus(
   ) => void,
   onPrinterState?: (state: string) => void,
   onPrinterObjectsStatus?: (status: PrinterObjectsStatus) => void,
-  wsBaseOverride?: string | null
+  wsBaseOverride?: string | null,
+  mockMoonrakerData = false
 ): UseMoonrakerStatusResult {
   const [connectionState, setConnectionState] = useState<MoonrakerConnectionState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +111,33 @@ export function useMoonrakerStatus(
   };
 
   useEffect(() => {
+    if (mockMoonrakerData) {
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {
+          // no-op
+        }
+        wsRef.current = null;
+      }
+      const mock = getMockPrinterObjectsStatus();
+      statusRef.current = mock;
+      applyStatus(mock);
+      const base = Date.now() - 14 * 60 * 1000;
+      for (let i = 0; i < 15; i++) {
+        const t = 208 + Math.sin(i * 0.4) * 6;
+        const b = 58 + Math.cos(i * 0.3) * 2;
+        onTempSampleRef.current({ timestamp: base + i * 60 * 1000, head: t, bed: b });
+      }
+      onPrinterStateRef.current?.('ready');
+      setLastPrinterState('ready');
+      setConnectionState('mock');
+      setError(null);
+      return () => {
+        // no-op
+      };
+    }
+
     const url = wsUrlFromPublicBase(wsBaseOverride);
     if (!url) {
       setConnectionState('missing_env');
@@ -223,9 +254,12 @@ export function useMoonrakerStatus(
       ws.close();
       wsRef.current = null;
     };
-  }, [applyStatus, wsBaseOverride]);
+  }, [applyStatus, wsBaseOverride, mockMoonrakerData]);
 
   useEffect(() => {
+    if (mockMoonrakerData) {
+      return;
+    }
     const wsBase = wsUrlFromPublicBase(wsBaseOverride);
     if (!wsBase || connectionState === 'missing_env' || connectionState === 'error') {
       return;
@@ -257,7 +291,7 @@ export function useMoonrakerStatus(
       cancelled = true;
       clearInterval(t);
     };
-  }, [connectionState, wsBaseOverride]);
+  }, [connectionState, wsBaseOverride, mockMoonrakerData]);
 
   return { connectionState, error, lastPrinterState };
 }

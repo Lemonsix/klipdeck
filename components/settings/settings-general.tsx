@@ -6,7 +6,12 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 
 export function SettingsGeneral() {
-  const { openaiApiToken, setOpenaiToken, moonrakerWsUrl, setMoonrakerWsUrl } = useStore();
+  const {
+    openaiApiToken,
+    setOpenaiToken,
+    moonrakerWsUrl,
+    setMoonrakerWsUrl,
+  } = useStore();
   const [showApiToken, setShowApiToken] = useState(false);
   const [moonrakerTest, setMoonrakerTest] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
   const [moonrakerTestMsg, setMoonrakerTestMsg] = useState<string>('');
@@ -27,7 +32,10 @@ export function SettingsGeneral() {
       try {
         const res = await fetch('/api/runtime-config');
         const data = (await res.json()) as {
-          config?: { moonrakerWsUrl?: string; openaiApiToken?: string };
+          config?: {
+            moonrakerWsUrl?: string;
+            openaiApiToken?: string;
+          };
         };
         if (cancelled) return;
         setMoonrakerWsUrl(data.config?.moonrakerWsUrl ?? '');
@@ -176,6 +184,10 @@ export function SettingsGeneral() {
       </div>
       <p className="text-[10px] text-muted-foreground font-mono border-l-2 border-primary pl-2">
         Stored in data/runtime-config.json on this host.
+      </p>
+      <p className="text-[10px] text-muted-foreground font-mono border-l-2 border-primary pl-2">
+        Dev mode/mock data ahora vienen por env: <code>KLIPDECK_DEVELOPER_MODE</code> y{' '}
+        <code>KLIPDECK_MOCK_MOONRAKER_DATA</code>.
       </p>
     </div>
   );

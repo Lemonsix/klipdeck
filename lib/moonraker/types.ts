@@ -68,6 +68,34 @@ export interface DisplayStatusStatus {
   progress?: number;
 }
 
+/** Klipper `bed_mesh` (Moonraker printer_objects). */
+export interface BedMeshProfileMeshParams {
+  min_x: number;
+  max_x: number;
+  min_y: number;
+  max_y: number;
+  x_count: number;
+  y_count: number;
+  mesh_x_pps: number;
+  mesh_y_pps: number;
+  algo: 'lagrange' | 'bicubic' | string;
+  tension: number;
+}
+
+export interface BedMeshProfile {
+  points: number[][];
+  mesh_params: BedMeshProfileMeshParams;
+}
+
+export interface BedMeshStatus {
+  profile_name?: string;
+  mesh_min?: [number, number];
+  mesh_max?: [number, number];
+  probed_matrix?: number[][];
+  mesh_matrix?: number[][];
+  profiles?: Record<string, BedMeshProfile>;
+}
+
 export interface PrinterObjectsStatus {
   extruder?: ExtruderStatus;
   heater_bed?: HeaterBedStatus;
@@ -76,6 +104,7 @@ export interface PrinterObjectsStatus {
   print_stats?: PrintStatsStatus;
   virtual_sdcard?: VirtualSdcardStatus;
   display_status?: DisplayStatusStatus;
+  bed_mesh?: BedMeshStatus;
   [key: string]: unknown;
 }
 

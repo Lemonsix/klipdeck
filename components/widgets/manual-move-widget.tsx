@@ -37,6 +37,7 @@ export function ManualMoveWidget({ widgetId: _widgetId }: ManualMoveWidgetProps)
     motionMaxX,
     motionMaxY,
     motionMaxZ,
+    mockMoonrakerData,
   } = useStore();
   const [xDraft, setXDraft] = useState('');
   const [yDraft, setYDraft] = useState('');
@@ -69,6 +70,10 @@ export function ManualMoveWidget({ widgetId: _widgetId }: ManualMoveWidgetProps)
         setErr(`Axis ${axis}: max ${max.toFixed(2)}`);
         return;
       }
+      if (mockMoonrakerData) {
+        setErr('Mock mode: moves disabled');
+        return;
+      }
       setErr(null);
       setBusyAxis(axis);
       try {
@@ -80,7 +85,7 @@ export function ManualMoveWidget({ widgetId: _widgetId }: ManualMoveWidgetProps)
         setBusyAxis(null);
       }
     },
-    []
+    [mockMoonrakerData]
   );
 
   return (

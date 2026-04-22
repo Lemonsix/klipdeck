@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { PrintJobView } from '@/lib/moonraker/print-job-view';
 import { EMPTY_PRINT_JOB_VIEW } from '@/lib/moonraker/print-job-view';
+import type { BedMeshPlot } from '@/lib/moonraker/bed-mesh-from-status';
+import type { MockGcodeFileEntry } from '@/lib/dev/mock-gcode-files';
 
 export interface Widget {
   id: string;
@@ -33,6 +35,10 @@ interface WidgetStore {
   openaiApiToken: string;
   moonrakerWsUrl: string;
   printJobView: PrintJobView;
+  bedMeshPlot: BedMeshPlot | null;
+  developerMode: boolean;
+  mockMoonrakerData: boolean;
+  mockGcodeFiles: MockGcodeFileEntry[] | null;
 
   // Widget actions
   addWidget: (widget: Widget) => void;
@@ -64,6 +70,10 @@ interface WidgetStore {
   setOpenaiToken: (token: string) => void;
   setMoonrakerWsUrl: (url: string) => void;
   setPrintJobView: (view: PrintJobView) => void;
+  setBedMeshPlot: (plot: BedMeshPlot | null) => void;
+  setDeveloperMode: (v: boolean) => void;
+  setMockMoonrakerData: (v: boolean) => void;
+  setMockGcodeFiles: (files: MockGcodeFileEntry[] | null) => void;
 }
 
 export const useStore = create<WidgetStore>((set) => ({
@@ -74,7 +84,7 @@ export const useStore = create<WidgetStore>((set) => ({
       x: 0,
       y: 0,
       w: 3,
-      h: 6,
+      h: 3,
       config: { showGraph: true },
     },
     {
@@ -148,6 +158,10 @@ export const useStore = create<WidgetStore>((set) => ({
   openaiApiToken: '',
   moonrakerWsUrl: '',
   printJobView: EMPTY_PRINT_JOB_VIEW,
+  bedMeshPlot: null,
+  developerMode: false,
+  mockMoonrakerData: false,
+  mockGcodeFiles: null,
 
   addWidget: (widget) =>
     set((state) => ({
@@ -214,5 +228,25 @@ export const useStore = create<WidgetStore>((set) => ({
   setPrintJobView: (view) =>
     set(() => ({
       printJobView: view,
+    })),
+
+  setBedMeshPlot: (plot) =>
+    set(() => ({
+      bedMeshPlot: plot,
+    })),
+
+  setDeveloperMode: (v) =>
+    set(() => ({
+      developerMode: v,
+    })),
+
+  setMockMoonrakerData: (v) =>
+    set(() => ({
+      mockMoonrakerData: v,
+    })),
+
+  setMockGcodeFiles: (files) =>
+    set(() => ({
+      mockGcodeFiles: files,
     })),
 }));

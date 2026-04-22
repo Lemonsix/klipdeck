@@ -69,7 +69,7 @@ export function MacroWidget({
   sizeVariant = '3x1',
   color = '#06b6d4',
 }: MacroWidgetProps) {
-  const { isEditMode } = useStore();
+  const { isEditMode, mockMoonrakerData } = useStore();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,13 +81,17 @@ export function MacroWidget({
     setError(null);
     setBusy(true);
     try {
+      if (mockMoonrakerData) {
+        await new Promise((r) => setTimeout(r, 180));
+        return;
+      }
       await postGcodeScript(klipperMacroName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
     } finally {
       setBusy(false);
     }
-  }, [isEditMode, busy, klipperMacroName]);
+  }, [isEditMode, busy, klipperMacroName, mockMoonrakerData]);
 
   return (
     <div className="h-full w-full overflow-hidden group relative flex flex-col">

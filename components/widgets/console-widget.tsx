@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useStore } from '@/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -41,6 +42,7 @@ function formatTime(ts: number) {
 }
 
 export function ConsoleWidget({ widgetId: _widgetId }: ConsoleWidgetProps) {
+  const mockMoonrakerData = useStore((s) => s.mockMoonrakerData);
   const [draft, setDraft] = useState('');
   const [lines, setLines] = useState<LogLine[]>([]);
   const [busy, setBusy] = useState(false);
@@ -66,6 +68,10 @@ export function ConsoleWidget({ widgetId: _widgetId }: ConsoleWidgetProps) {
     setDraft('');
     setBusy(true);
     try {
+      if (mockMoonrakerData) {
+        append('ok', '(mock ok)');
+        return;
+      }
       const out = await postGcodeScript(script);
       append('ok', out);
     } catch (e) {
@@ -73,7 +79,7 @@ export function ConsoleWidget({ widgetId: _widgetId }: ConsoleWidgetProps) {
     } finally {
       setBusy(false);
     }
-  }, [draft, busy, append]);
+  }, [draft, busy, append, mockMoonrakerData]);
 
   return (
     <div className="h-full w-full p-3 flex flex-col gap-2 overflow-hidden min-h-0">

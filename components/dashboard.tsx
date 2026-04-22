@@ -1,7 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import { TemperatureWidget } from './widgets/temperature-widget';
@@ -13,17 +13,19 @@ import { FilesWidget } from './widgets/files-widget';
 import { PrintWidget } from './widgets/print-widget';
 import { printJobViewFromStatus } from '@/lib/moonraker/print-job-view';
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
+import { bedMeshPlotFromStatus } from '@/lib/moonraker/bed-mesh-from-status';
 import { FirstRunOnboarding } from './first-run-onboarding';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Save, GripVertical } from 'lucide-react';
 import { useMoonrakerStatus } from '@/hooks/use-moonraker-status';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { MOCK_GCODES_FILES } from '@/lib/dev/mock-gcode-files';
 
 type WidgetType = 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print';
 type WidgetSize = { w: number; h: number };
 
 const WIDGET_SIZE_PRESETS: Record<WidgetType, WidgetSize[]> = {
-  temperature: [{ w: 3, h: 6 }],
+  temperature: [{ w: 3, h: 3 }],
   macro: [{ w: 3, h: 1 }, { w: 1, h: 1 }],
   mesh: [{ w: 4, h: 4 }],
   status: [{ w: 2, h: 2 }],
@@ -53,15 +55,49 @@ export function Dashboard() {
     addTempHistory,
     moonrakerWsUrl,
     setPrintJobView,
+    setBedMeshPlot,
+    mockMoonrakerData,
+    setMockGcodeFiles,
+    setDeveloperMode,
+    setMockMoonrakerData,
   } = useStore();
 
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: false });
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/runtime-config');
+        const data = (await res.json()) as {
+          config?: { developerMode?: boolean; mockMoonrakerData?: boolean };
+        };
+        if (cancelled) return;
+        setDeveloperMode(Boolean(data.config?.developerMode));
+        setMockMoonrakerData(Boolean(data.config?.mockMoonrakerData));
+      } catch {
+        // no-op
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setDeveloperMode, setMockMoonrakerData]);
+
+  useEffect(() => {
+    if (mockMoonrakerData) {
+      setMockGcodeFiles(MOCK_GCODES_FILES);
+    } else {
+      setMockGcodeFiles(null);
+    }
+  }, [mockMoonrakerData, setMockGcodeFiles]);
+
   const onPrinterObjectsStatus = useCallback(
     (status: PrinterObjectsStatus) => {
       setPrintJobView(printJobViewFromStatus(status));
+      setBedMeshPlot(bedMeshPlotFromStatus(status));
     },
-    [setPrintJobView]
+    [setPrintJobView, setBedMeshPlot]
   );
 
   const { connectionState, error: moonrakerError } = useMoonrakerStatus(
@@ -70,7 +106,8 @@ export function Dashboard() {
     setMotionState,
     undefined,
     onPrinterObjectsStatus,
-    moonrakerWsUrl || undefined
+    moonrakerWsUrl || undefined,
+    mockMoonrakerData
   );
 
   const layout: Layout = widgets.map((w) => {
@@ -155,6 +192,17 @@ export function Dashboard() {
             {isEditMode ? <><Save size={15} />Done</> : <><Edit2 size={15} />Edit Layout</>}
           </motion.button>
         </div>
+
+        {connectionState === 'mock' && (
+          <Alert className="mb-4 border-2 rounded-none border-primary/40 bg-primary/5">
+            <AlertTitle className="font-mono text-xs uppercase tracking-wide text-primary">
+              Mock Moonraker data
+            </AlertTitle>
+            <AlertDescription className="font-mono text-xs mt-1 text-muted-foreground">
+              Dashboard widgets use in-repo mock state. G-code / file APIs are still disabled or stubbed per widget.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {(connectionState === 'missing_env' ||
           connectionState === 'error' ||
