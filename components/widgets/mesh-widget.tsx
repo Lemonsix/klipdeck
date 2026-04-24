@@ -276,14 +276,23 @@ export function MeshWidget({ widgetId: _widgetId }: MeshWidgetProps) {
 
   return (
     <div className="h-full w-full p-3 flex flex-col overflow-hidden">
-      <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b-2 border-border pb-2 mb-3 shrink-0">
-        Bed Mesh 3D
+      <h3 className="text-xs font-bold text-foreground border-b-2 border-border pb-2 mb-3 shrink-0 truncate">
+        {bedMeshPlot ? (
+          <>
+            <span className="tracking-tight">Bed Mesh</span>
+            <span className="font-mono text-[11px] font-semibold text-muted-foreground">
+              {' - profile: '}
+              <span className="text-foreground">{bedMeshPlot.profileName || '(none)'}</span>
+            </span>
+          </>
+        ) : (
+          <span className="uppercase tracking-wider">Bed Mesh</span>
+        )}
       </h3>
 
       <div className="flex-1 min-h-0 flex flex-col gap-2">
         {bedMeshPlot ? (
-          <>
-            <div className="flex-1 min-h-0 border-2 border-border/50 bg-[#0c0c0f] min-h-[200px] pointer-events-none select-none flex items-center justify-center p-2">
+          <div className="flex-1 min-h-0 border-2 border-border/50 bg-[#0c0c0f] min-h-[200px] pointer-events-none select-none flex items-center justify-center p-2">
               <div className="relative h-full max-h-full aspect-square w-full max-w-full">
                 <Canvas
                   gl={{ antialias: true, alpha: false }}
@@ -306,12 +315,6 @@ export function MeshWidget({ widgetId: _widgetId }: MeshWidgetProps) {
                 </div>
               </div>
             </div>
-            <p className="text-[10px] font-mono text-muted-foreground text-center truncate">
-              {bedMeshPlot.profileName ? `Perfil: ${bedMeshPlot.profileName}` : 'Perfil (vacío)'} ·{' '}
-              {bedMeshPlot.rows}×{bedMeshPlot.cols} · Moonraker{' '}
-              <code className="text-muted-foreground/80">bed_mesh.{bedMeshPlot.matrixSource}</code>
-            </p>
-          </>
         ) : (
           <div className="flex-1 min-h-0 border-2 border-border/50 bg-muted/20 flex flex-col items-center justify-center gap-2 px-4 text-center">
             <p className="text-xs text-muted-foreground">

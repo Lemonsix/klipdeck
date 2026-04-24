@@ -5,6 +5,7 @@ import type { JsonRpcRequest, JsonRpcResponse, PrinterObjectsQueryResult } from 
 import { mergePrinterStatus, motionFromStatus, tempsFromStatus } from '@/lib/moonraker/merge-status';
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
 import { getMockPrinterObjectsStatus } from '@/lib/dev/mock-printer-objects-status';
+import type { MockPrintScenario } from '@/lib/store';
 
 /** Moonraker `printer.objects.subscribe`: `null` = all fields for that object. */
 const MOONRAKER_SUBSCRIBE_OBJECTS: Record<string, string[] | null> = {
@@ -64,7 +65,8 @@ export function useMoonrakerStatus(
   onPrinterState?: (state: string) => void,
   onPrinterObjectsStatus?: (status: PrinterObjectsStatus) => void,
   wsBaseOverride?: string | null,
-  mockMoonrakerData = false
+  mockMoonrakerData = false,
+  mockPrintScenario: MockPrintScenario = 'printing_demo'
 ): UseMoonrakerStatusResult {
   const [connectionState, setConnectionState] = useState<MoonrakerConnectionState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export function useMoonrakerStatus(
         }
         wsRef.current = null;
       }
-      const mock = getMockPrinterObjectsStatus();
+      const mock = getMockPrinterObjectsStatus(mockPrintScenario);
       statusRef.current = mock;
       applyStatus(mock);
       const base = Date.now() - 14 * 60 * 1000;
@@ -133,8 +135,44 @@ export function useMoonrakerStatus(
       setLastPrinterState('ready');
       setConnectionState('mock');
       setError(null);
+
+      let tick: ReturnType<typeof setInterval> | undefined;
+      if (mockPrintScenario === 'printing_demo') {
+        let phase =
+          typeof mock.virtual_sdcard?.progress === 'number' && Number.isFinite(mock.virtual_sdcard.progress)
+            ? mock.virtual_sdcard.progress
+            : 0.47;
+        const totalLayers = 248;
+        tick = setInterval(() => {
+          phase += 0.014;
+          if (phase > 0.985) phase = 0.05;
+          const currentLayer = Math.min(totalLayers, Math.max(1, Math.floor(phase * totalLayers)));
+          const dur = Math.floor(phase * 4500);
+          const patch: Record<string, unknown> = {
+            virtual_sdcard: {
+              progress: phase,
+              is_active: true,
+              file_path: 'benchy_coarse.gcode',
+            },
+            display_status: {
+              progress: phase,
+              message: `Layer ${currentLayer}/${totalLayers}`,
+            },
+            print_stats: {
+              state: 'printing',
+              filename: 'benchy_coarse.gcode',
+              print_duration: dur,
+              total_duration: dur + 140,
+              info: { current_layer: currentLayer, total_layer: totalLayers },
+            },
+          };
+          statusRef.current = mergePrinterStatus(statusRef.current, patch);
+          applyStatus(statusRef.current);
+        }, 950);
+      }
+
       return () => {
-        // no-op
+        if (tick) clearInterval(tick);
       };
     }
 
@@ -254,7 +292,7 @@ export function useMoonrakerStatus(
       ws.close();
       wsRef.current = null;
     };
-  }, [applyStatus, wsBaseOverride, mockMoonrakerData]);
+  }, [applyStatus, wsBaseOverride, mockMoonrakerData, mockPrintScenario]);
 
   useEffect(() => {
     if (mockMoonrakerData) {

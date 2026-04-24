@@ -26,18 +26,18 @@ function orderedFormKeys(header: FormManagedSectionHeader): string[] {
 
 function SectionFields({
   header,
-  draftConfig,
+  draftPrinterCfg,
   onChange,
 }: {
   header: FormManagedSectionHeader;
-  draftConfig: string;
+  draftPrinterCfg: string;
   onChange: (next: string) => void;
 }) {
   const keys = useMemo(() => orderedFormKeys(header), [header]);
-  const map = useMemo(() => getFormManagedSectionMap(draftConfig, header), [draftConfig, header]);
+  const map = useMemo(() => getFormManagedSectionMap(draftPrinterCfg, header), [draftPrinterCfg, header]);
 
   const setField = (key: string, value: string) => {
-    onChange(upsertFormManagedSection(draftConfig, header, { [key]: value }));
+    onChange(upsertFormManagedSection(draftPrinterCfg, header, { [key]: value }));
   };
 
   return (
@@ -71,16 +71,16 @@ function SectionFields({
 }
 
 export function SettingsPrinterForms(props: {
-  draftConfig: string;
-  setDraftConfig: (v: string) => void;
+  draftPrinterCfg: string;
+  setDraftPrinterCfg: (v: string) => void;
   loading: boolean;
 }) {
-  const { draftConfig, setDraftConfig, loading } = props;
+  const { draftPrinterCfg, setDraftPrinterCfg, loading } = props;
 
   return (
     <div className="flex flex-col gap-1.5 pb-1">
       {loading && (
-        <p className="text-[10px] font-mono text-muted-foreground">Loading printer.cfg…</p>
+        <p className="text-[10px] font-mono text-muted-foreground">Loading printer.cfg / macros.cfg…</p>
       )}
 
       <div className="flex flex-col gap-1.5">
@@ -92,7 +92,7 @@ export function SettingsPrinterForms(props: {
             <h2 className="mb-1 border-b border-border/60 pb-1 text-[10px] font-black uppercase tracking-wider text-foreground">
               [{header}]
             </h2>
-            <SectionFields header={header} draftConfig={draftConfig} onChange={setDraftConfig} />
+            <SectionFields header={header} draftPrinterCfg={draftPrinterCfg} onChange={setDraftPrinterCfg} />
           </section>
         ))}
       </div>

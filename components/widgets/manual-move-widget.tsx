@@ -91,7 +91,7 @@ export function ManualMoveWidget({ widgetId: _widgetId }: ManualMoveWidgetProps)
   return (
     <div className="h-full w-full p-3 flex flex-col overflow-hidden">
       <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b-2 border-border pb-2 mb-3 shrink-0">
-        Manual Move
+        Toolhead
       </h3>
 
       <div className="border-2 border-border/60 bg-black/20 font-mono text-[11px]">

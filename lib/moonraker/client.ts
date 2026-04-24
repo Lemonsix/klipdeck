@@ -170,8 +170,21 @@ export interface MoonrakerGcodeFile {
   size: number | null;
 }
 
+const ALLOWED_LIBRARY_EXTENSIONS = new Set(['.gcode', '.gco', '.gc', '.stl']);
+
 function asObject(v: unknown): Record<string, unknown> {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
+}
+
+function extensionFromPath(path: string): string {
+  const lastSegment = path.split('/').pop() ?? path;
+  const idx = lastSegment.lastIndexOf('.');
+  if (idx < 0) return '';
+  return lastSegment.slice(idx).toLowerCase();
+}
+
+function isSupportedLibraryFile(path: string): boolean {
+  return ALLOWED_LIBRARY_EXTENSIONS.has(extensionFromPath(path));
 }
 
 export async function moonrakerListGcodeFiles(): Promise<MoonrakerGcodeFile[]> {
@@ -187,7 +200,7 @@ export async function moonrakerListGcodeFiles(): Promise<MoonrakerGcodeFile[]> {
       const size = typeof obj.size === 'number' ? obj.size : null;
       return { path, modified, size };
     })
-    .filter((f) => f.path.length > 0);
+    .filter((f) => f.path.length > 0 && isSupportedLibraryFile(f.path));
 }
 
 export interface MoonrakerFileMetadata {
@@ -207,6 +220,25 @@ export async function moonrakerGetFileMetadata(filename: string): Promise<Moonra
     filamentMm:
       typeof obj.filament_total === 'number' ? obj.filament_total : null,
   };
+}
+
+export async function moonrakerReadGcodeFile(filename: string): Promise<string> {
+  const cleanPath = filename.replace(/^\/+/, '');
+  const encodedPath = cleanPath
+    .split('/')
+    .filter((part) => part.length > 0)
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+  const url = `${await getBaseUrl()}/server/files/gcodes/${encodedPath}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: new Headers(),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new MoonrakerHttpError(res.status, { raw: text });
+  }
+  return text;
 }
 
 export async function moonrakerStartPrint(filename: string): Promise<void> {
@@ -245,6 +277,9 @@ export async function moonrakerEmergencyStop(): Promise<void> {
 }
 
 export async function moonrakerUploadGcodeFile(file: File): Promise<void> {
+  if (!isSupportedLibraryFile(file.name)) {
+    throw new MoonrakerConfigError('Unsupported file type. Allowed: .gcode, .gco, .gc, .stl');
+  }
   const form = new FormData();
   form.append('root', 'gcodes');
   form.append('print', 'false');

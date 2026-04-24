@@ -1,4 +1,5 @@
 import type { PrinterObjectsStatus } from '@/lib/moonraker/types';
+import type { MockPrintScenario } from '@/lib/store';
 
 const MESH_ROWS = 17;
 const MESH_COLS = 17;
@@ -33,8 +34,10 @@ function buildMockProbedMatrix(): number[][] {
   );
 }
 
-/** Full `printer.objects` snapshot for dashboard widgets (dev mock). */
-export function getMockPrinterObjectsStatus(): PrinterObjectsStatus {
+function mockBaseStatus(): Omit<
+  PrinterObjectsStatus,
+  'print_stats' | 'virtual_sdcard' | 'display_status'
+> {
   const mesh_matrix = buildMockMeshMatrix();
   const probed_matrix = buildMockProbedMatrix();
   const mesh_min: [number, number] = [15, 12];
@@ -48,22 +51,6 @@ export function getMockPrinterObjectsStatus(): PrinterObjectsStatus {
       axis_maximum: [250, 210, 220, 0],
     },
     gcode_move: { gcode_position: [142.3, 88.7, 10.2, 0] },
-    print_stats: {
-      state: 'printing',
-      filename: 'benchy_coarse.gcode',
-      print_duration: 1240,
-      total_duration: 1300,
-      info: { current_layer: 42, total_layer: 248 },
-    },
-    virtual_sdcard: {
-      file_path: 'benchy_coarse.gcode',
-      progress: 0.47,
-      is_active: true,
-    },
-    display_status: {
-      message: 'Layer 42/248',
-      progress: 0.47,
-    },
     bed_mesh: {
       profile_name: 'default',
       mesh_min,
@@ -87,6 +74,54 @@ export function getMockPrinterObjectsStatus(): PrinterObjectsStatus {
           },
         },
       },
+    },
+  };
+}
+
+/** Full `printer.objects` snapshot for dashboard widgets (dev mock). */
+export function getMockPrinterObjectsStatus(
+  scenario: MockPrintScenario = 'printing_demo'
+): PrinterObjectsStatus {
+  const base = mockBaseStatus();
+  if (scenario === 'idle') {
+    return {
+      ...base,
+      print_stats: {
+        state: 'standby',
+        filename: '',
+        print_duration: 0,
+        total_duration: 0,
+        info: { current_layer: 0, total_layer: 0 },
+      },
+      virtual_sdcard: {
+        file_path: '',
+        progress: 0,
+        is_active: false,
+      },
+      display_status: {
+        message: '',
+        progress: 0,
+      },
+    } as PrinterObjectsStatus;
+  }
+
+  return {
+    ...base,
+    print_stats: {
+      state: 'printing',
+      filename: 'benchy_coarse.gcode',
+      print_duration: 1240,
+      total_duration: 1300,
+      info: { current_layer: 42, total_layer: 248 },
+    },
+    virtual_sdcard: {
+      file_path: 'benchy_coarse.gcode',
+      progress: 0.47,
+      is_active: true,
+    },
+    display_status: {
+      message: 'Layer 42/248',
+      progress: 0.47,
     },
   } as PrinterObjectsStatus;
 }

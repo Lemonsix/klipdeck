@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { mockMetadataForPath } from '@/lib/dev/mock-gcode-files';
+import { ensureClientRuntimeHydrated } from '@/lib/runtime-client-hydrate';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -85,6 +86,7 @@ export function FilesWidget({ widgetId: _widgetId }: FilesWidgetProps) {
     setLoading(true);
     setError(null);
     try {
+      await ensureClientRuntimeHydrated();
       const { mockMoonrakerData: mock, mockGcodeFiles: mockList } = useStore.getState();
       if (mock) {
         const next = [...(mockList ?? [])].sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0));

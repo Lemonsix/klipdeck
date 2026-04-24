@@ -316,7 +316,7 @@ export function FirstRunOnboarding() {
                     </p>
                     <p>
                       <span className="text-muted-foreground">Defaults:</span>{' '}
-                      <span className="text-primary">starter printer.cfg + draft</span>
+                      <span className="text-primary">starter printer.cfg / macros.cfg + draft</span>
                     </p>
                   </div>
                 </div>

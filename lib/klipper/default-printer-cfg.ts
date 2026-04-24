@@ -71,9 +71,5 @@ pid_kd: 948.0
 min_temp: 0
 max_temp: 130
 
-[gcode_macro HOME_XY]
-description: Home X and Y
-gcode:
-  G28 X Y
-  M117 Homed XY
+[include macros.cfg]
 `;

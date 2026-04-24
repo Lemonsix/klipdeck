@@ -4,9 +4,23 @@ import { EMPTY_PRINT_JOB_VIEW } from '@/lib/moonraker/print-job-view';
 import type { BedMeshPlot } from '@/lib/moonraker/bed-mesh-from-status';
 import type { MockGcodeFileEntry } from '@/lib/dev/mock-gcode-files';
 
+/** Dev mock: animated printing UI vs idle for picker / local files. */
+export type MockPrintScenario = 'printing_demo' | 'idle';
+
 export interface Widget {
   id: string;
-  type: 'temperature' | 'macro' | 'mesh' | 'status' | 'console' | 'motion' | 'files' | 'print' | 'nav' | 'estop';
+  type:
+    | 'temperature'
+    | 'macro'
+    | 'mesh'
+    | 'status'
+    | 'console'
+    | 'motion'
+    | 'files'
+    | 'print'
+    | 'nav'
+    | 'estop'
+    | 'prusaslicer';
   x: number;
   y: number;
   w: number;
@@ -39,6 +53,7 @@ interface WidgetStore {
   developerMode: boolean;
   mockMoonrakerData: boolean;
   mockGcodeFiles: MockGcodeFileEntry[] | null;
+  mockPrintScenario: MockPrintScenario;
 
   // Widget actions
   addWidget: (widget: Widget) => void;
@@ -74,6 +89,7 @@ interface WidgetStore {
   setDeveloperMode: (v: boolean) => void;
   setMockMoonrakerData: (v: boolean) => void;
   setMockGcodeFiles: (files: MockGcodeFileEntry[] | null) => void;
+  setMockPrintScenario: (s: MockPrintScenario) => void;
 }
 
 export const useStore = create<WidgetStore>((set) => ({
@@ -144,7 +160,7 @@ export const useStore = create<WidgetStore>((set) => ({
       x: 0,
       y: 9,
       w: 6,
-      h: 5,
+      h: 6,
       config: {},
     },
     {
@@ -180,6 +196,7 @@ export const useStore = create<WidgetStore>((set) => ({
   developerMode: false,
   mockMoonrakerData: false,
   mockGcodeFiles: null,
+  mockPrintScenario: 'printing_demo',
 
   addWidget: (widget) =>
     set((state) => ({
@@ -266,5 +283,10 @@ export const useStore = create<WidgetStore>((set) => ({
   setMockGcodeFiles: (files) =>
     set(() => ({
       mockGcodeFiles: files,
+    })),
+
+  setMockPrintScenario: (s) =>
+    set(() => ({
+      mockPrintScenario: s,
     })),
 }));

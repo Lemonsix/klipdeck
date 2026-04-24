@@ -71,7 +71,7 @@ export function SettingsShell() {
                 disabled={!cfg.canSync}
                 onClick={() => void cfg.syncToMoonraker()}
               >
-                {cfg.syncing ? 'Syncing…' : 'Sync printer.cfg'}
+                {cfg.syncing ? 'Syncing…' : 'Sync printer.cfg + macros.cfg'}
               </Button>
               <span className="text-[10px] font-mono text-muted-foreground">
                 {cfg.loading && 'Loading…'}
@@ -85,13 +85,16 @@ export function SettingsShell() {
           {active === 'general' && <SettingsGeneral />}
           {active === 'printer' && (
             <SettingsPrinterForms
-              draftConfig={cfg.draftConfig}
-              setDraftConfig={cfg.setDraftConfig}
+              draftPrinterCfg={cfg.draftPrinter}
+              setDraftPrinterCfg={cfg.setDraftPrinter}
               loading={cfg.loading}
             />
           )}
           {active === 'macros' && (
-            <SettingsMacrosTab draftConfig={cfg.draftConfig} setDraftConfig={cfg.setDraftConfig} />
+            <SettingsMacrosTab
+              draftMacrosCfg={cfg.draftMacros}
+              setDraftMacrosCfg={cfg.setDraftMacros}
+            />
           )}
           {active === 'machine' && <SettingsMachine />}
           {active === 'docs' && <SettingsDocs />}
